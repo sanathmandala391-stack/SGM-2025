@@ -1,6 +1,5 @@
 const Complaint = require("../models/Complaint");
-const transporter = require("../mailer");
-const path = require("path");
+const resend = require("../mailer");
 
 const addComplaint = async (req, res) => {
   try {
@@ -10,7 +9,7 @@ const addComplaint = async (req, res) => {
       return res.status(401).json({ message: "All fields are required" });
     }
 
-    // Save complaint to database
+    // Save complaint in MongoDB
     const newComplaint = new Complaint({
       name,
       branch,
@@ -20,12 +19,22 @@ const addComplaint = async (req, res) => {
     });
     await newComplaint.save();
 
-    // ✅ Send email to ADMIN only
-    await transporter.sendMail({
-      from: process.env.COLLEGE_EMAIL,
-      to: process.env.COLLEGE_EMAIL, // admin email (your Gmail)
-      subject: "New Complaint Submitted - College Portal",
-      text: `A new complaint has been submitted:\n\nName: ${name}\nBranch: ${branch}\nPin: ${pinNumber}\nEmail: ${email}\nMessage: ${message}\n\nPlease review it in the admin panel.`,
+    console.log("Sending complaint email via Resend...");
+
+    // ✅ Send email using Resend (not Nodemailer)
+    await resend.emails.send({
+      from: "College Portal <onboarding@resend.dev>", // this must be a verified sender domain
+      to: "sanathmandala391@gmail.com", // your admin Gmail
+      subject: "🧾 New Complaint Submitted",
+      text: `A new complaint has been submitted:
+
+Name: ${name}
+Branch: ${branch}
+Pin: ${pinNumber}
+Email: ${email}
+Message: ${message}
+
+Please review it soon.`,
     });
 
     res.status(201).json({ message: "Complaint submitted successfully and sent to admin" });
@@ -37,11 +46,11 @@ const addComplaint = async (req, res) => {
 
 const getcomplaint = async (req, res) => {
   try {
-    const complaint = await Complaint.find();
-    res.status(200).json(complaint);
+    const complaints = await Complaint.find();
+    res.status(200).json(complaints);
   } catch (err) {
     console.log(err);
-    res.status(500).json({ error: "Failed to fetch the complaints" });
+    res.status(500).json({ error: "Failed to fetch complaints" });
   }
 };
 
