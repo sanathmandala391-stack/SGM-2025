@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-   "dev":"nodemon run dev",
-   "start": "node index"
+    "dev": "nodemon run dev",
+    "start": "node index"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +20,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.2",
     "multer": "^2.0.2",
+    "nodemailer": "^7.0.10",
     "nodemon": "^3.1.10"
   }
 }
