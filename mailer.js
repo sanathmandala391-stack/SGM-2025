@@ -1,12 +1,7 @@
-const nodemailer = require("nodemailer");
+
+const { Resend } = require("resend");
 require("dotenv").config();
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.COLLEGE_EMAIL,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-module.exports = transporter;
+module.exports = resend;
