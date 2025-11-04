@@ -4,7 +4,7 @@ const verifyToken=require("../middlewares/verifyToken")
 
 const router=express.Router();
 
-router.post('/adminRegister',verifyToken,adminController.adminRegister);
+router.post('/adminRegister',adminController.adminRegister);
 router.post("/adminLogin",adminController.adminLogin);
 
 router.get("/getadmin",adminController.getAdmin);

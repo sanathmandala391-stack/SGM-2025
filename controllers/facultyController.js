@@ -2,7 +2,7 @@
  const jwt=require("jsonwebtoken");
  const bcrypt=require("bcryptjs");
  const dotEnv=require("dotenv");
-const e = require("express");
+const express= require("express");
 
  dotEnv.config();
 const secretKey=process.env.WhatIsYourName;
