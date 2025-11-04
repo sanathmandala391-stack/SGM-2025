@@ -18,14 +18,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 7000;
 
-app.use(cors({
-  origin: ["https://sgmgpt.netlify.app",
-    "https://sgm-theta.vercel.app"
-  ], 
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-}));
-
+app.use(
+  cors({
+    origin: [
+      "https://sgm-theta.vercel.app",
+      "https://sgmgpt.netlify.app"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
