@@ -1,5 +1,5 @@
 const Complaint = require("../models/Complaint");
-const transporter = require("../mailer"); 
+const transporter = require("../mailer");
 const path = require("path");
 
 const addComplaint = async (req, res) => {
@@ -7,9 +7,10 @@ const addComplaint = async (req, res) => {
     const { name, branch, pinNumber, message, email } = req.body;
 
     if (!name || !branch || !pinNumber || !message || !email) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(401).json({ message: "All fields are required" });
     }
 
+    // Save complaint to database
     const newComplaint = new Complaint({
       name,
       branch,
@@ -19,33 +20,20 @@ const addComplaint = async (req, res) => {
     });
     await newComplaint.save();
 
-    await transporter.emails.send({
-      from: "College Portal <onboarding@resend.dev>",
-      to: email,
-      subject: "Complaint Received - College Portal",
-      text: `Hello ${name},
-
-Your complaint has been successfully submitted.
-
-Details:
-Branch: ${branch}
-Pin: ${pinNumber}
-Message: ${message}
-
-We’ll review it soon.
-
-- College Administration`,
+    // ✅ Send email to ADMIN only
+    await transporter.sendMail({
+      from: process.env.COLLEGE_EMAIL,
+      to: process.env.COLLEGE_EMAIL, // admin email (your Gmail)
+      subject: "New Complaint Submitted - College Portal",
+      text: `A new complaint has been submitted:\n\nName: ${name}\nBranch: ${branch}\nPin: ${pinNumber}\nEmail: ${email}\nMessage: ${message}\n\nPlease review it in the admin panel.`,
     });
 
-    res
-      .status(201)
-      .json({ message: "Complaint submitted successfully and email sent" });
+    res.status(201).json({ message: "Complaint submitted successfully and sent to admin" });
   } catch (err) {
     console.error("Error submitting complaint:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 const getcomplaint = async (req, res) => {
   try {
