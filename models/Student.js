@@ -18,7 +18,13 @@
     password:{
         type:String,
         required:true
-    }
+    },
+          resetToken: {
+    type: String
+  },
+  resetTokenExpiry: {
+    type: Date
+  }
  })
  const Student=mongoose.model('Student',StudentSchema);
  module.exports=Student;

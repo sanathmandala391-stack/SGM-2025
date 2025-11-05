@@ -1,24 +1,21 @@
-const express = require("express");
-const router = express.Router();
+const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const bcrypt = require("bcryptjs");
-const resend = require("../mailer"); // your resend or nodemailer setup
+const bcrypt = require("bcrypt");
 
-// Import models
 const Admin = require("../models/Admin");
-const Faculty = require("../models/Faculty");
 const Student = require("../models/Student");
+const Faculty = require("../models/Faculty");
 
-// Helper
+
 const getModelByRole = (role) => {
   if (role === "admin") return Admin;
-  if (role === "faculty") return Faculty;
   if (role === "student") return Student;
+  if (role === "faculty") return Faculty;
   return null;
 };
 
-// ✅ Forgot Password (send reset link)
-router.post("/forgot-password", async (req, res) => {
+
+exports.forgotPassword = async (req, res) => {
   try {
     const { email, role } = req.body;
     const Model = getModelByRole(role);
@@ -27,45 +24,45 @@ router.post("/forgot-password", async (req, res) => {
     const user = await Model.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Generate token
     const token = crypto.randomBytes(32).toString("hex");
     user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 mins
+    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000;
     await user.save();
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
 
-    // Send email (Resend)
-    await resend.emails.send({
-      from: "College Portal <no-reply@collegeportal.com>",
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
       to: email,
-      subject: "Password Reset Request",
+      subject: `${role.toUpperCase()} Password Reset`,
       html: `
-        <h3>Hello ${user.name || "User"},</h3>
+        <h3>Hello ${user.name || role},</h3>
         <p>Click below to reset your password:</p>
         <a href="${resetLink}" target="_blank">${resetLink}</a>
         <p>This link expires in 15 minutes.</p>
       `,
     });
 
-    // 👉 For Postman testing — return token in response
-    res.json({
-      message: "Password reset email sent successfully",
-      resetToken: token, // 👈 see this token in Postman
-    });
+    res.json({ message: "Password reset link sent to email" });
   } catch (error) {
-    console.error("Forgot Password Error:", error);
-    res.status(500).json({ message: "Error sending reset email", error });
+    res.status(500).json({ message: "Error sending reset link", error });
   }
-});
+};
 
-// ✅ Reset Password (verify token & update password)
-router.post("/reset-password/:role/:token", async (req, res) => {
+
+exports.resetPassword = async (req, res) => {
   try {
-    const { role, token } = req.params;
+    const { token, role } = req.params;
     const { password } = req.body;
-
     const Model = getModelByRole(role);
+
     if (!Model) return res.status(400).json({ message: "Invalid role" });
 
     const user = await Model.findOne({
@@ -83,9 +80,6 @@ router.post("/reset-password/:role/:token", async (req, res) => {
 
     res.json({ message: "Password reset successful" });
   } catch (error) {
-    console.error("Reset Password Error:", error);
     res.status(500).json({ message: "Error resetting password", error });
   }
-});
-
-module.exports = router;
+};

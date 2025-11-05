@@ -14,7 +14,13 @@
    password:{
     type:String,
     required:true,
-   }
+   },
+         resetToken: {
+    type: String
+  },
+  resetTokenExpiry: {
+    type: Date
+  }
  })
 
  const Faculty=mongoose.model('Faculty',FacultySchema);
