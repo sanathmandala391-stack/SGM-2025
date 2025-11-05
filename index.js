@@ -22,7 +22,8 @@ app.use(
   cors({
     origin: [
       "https://sgm-theta.vercel.app",
-      "https://sgmgpt.netlify.app"
+      "https://sgmgpt.netlify.app",
+      "http://localhost:5173"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,

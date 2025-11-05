@@ -37,7 +37,7 @@ router.post("/forgot-password", async (req, res) => {
 
     // Send email (Resend)
     await resend.emails.send({
-      from: "College Portal <no-reply@collegeportal.com>",
+      from: "onboarding@resend.dev",
       to: email,
       subject: "Password Reset Request",
       html: `
