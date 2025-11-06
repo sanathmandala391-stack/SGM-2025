@@ -16,10 +16,10 @@
         type:String,
         required:true
     },
-      resetToken: {
+  otp: {                 
     type: String
   },
-  resetTokenExpiry: {
+  otpExpiry: {          
     type: Date
   }
 

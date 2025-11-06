@@ -1,11 +1,9 @@
 const nodemailer = require("nodemailer");
-const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 
 const Admin = require("../models/Admin");
 const Student = require("../models/Student");
 const Faculty = require("../models/Faculty");
-
 
 const getModelByRole = (role) => {
   if (role === "admin") return Admin;
@@ -14,7 +12,7 @@ const getModelByRole = (role) => {
   return null;
 };
 
-
+// Forgot Password: Send OTP
 exports.forgotPassword = async (req, res) => {
   try {
     const { email, role } = req.body;
@@ -24,63 +22,64 @@ exports.forgotPassword = async (req, res) => {
     const user = await Model.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const token = crypto.randomBytes(32).toString("hex");
-    user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000;
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
     await user.save();
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      secure:true,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASS, // App password
       },
     });
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: `${role.toUpperCase()} Password Reset`,
+      subject: `${role.toUpperCase()} Password Reset OTP`,
       html: `
         <h3>Hello ${user.name || role},</h3>
-        <p>Click below to reset your password:</p>
-        <a href="${resetLink}" target="_blank">${resetLink}</a>
-        <p>This link expires in 15 minutes.</p>
+        <p>Your OTP for password reset is: <b>${otp}</b></p>
+        <p>This OTP will expire in 10 minutes.</p>
       `,
     });
 
-    res.json({ message: "Password reset link sent to email" });
+    res.json({ message: "OTP sent to email" });
   } catch (error) {
-    res.status(500).json({ message: "Error sending reset link", error });
+    console.error(error);
+    res.status(500).json({ message: "Error sending OTP", error });
   }
 };
 
-
+// Reset Password: Verify OTP
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, role } = req.params;
-    const { password } = req.body;
+    const { email, role, otp, password } = req.body;
     const Model = getModelByRole(role);
-
     if (!Model) return res.status(400).json({ message: "Invalid role" });
 
-    const user = await Model.findOne({
-      resetToken: token,
-      resetTokenExpiry: { $gt: Date.now() },
-    });
+    const user = await Model.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user) return res.status(400).json({ message: "Invalid or expired token" });
+    // Verify OTP
+    if (!user.otp || user.otp !== otp || Date.now() > user.otpExpiry) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
 
+    // Update password
     const hashed = await bcrypt.hash(password, 10);
     user.password = hashed;
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
+    user.otp = undefined;
+    user.otpExpiry = undefined;
     await user.save();
 
     res.json({ message: "Password reset successful" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error resetting password", error });
   }
 };
