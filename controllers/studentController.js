@@ -2,7 +2,7 @@
 const jwt=require("jsonwebtoken");
 const bcrypt=require("bcryptjs");
 const dotEnv=require("dotenv");
-const { text } = require("body-parser");
+const nodemailer=require("nodemailer");
 
 dotEnv.config();
 const secretKey=process.env.WhatIsYourName;
