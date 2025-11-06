@@ -15,6 +15,7 @@ const emailRoute=require("./routes/emailRoute");
 
 dotenv.config();
 
+
 const app = express();
 const PORT = process.env.PORT || 7000;
 

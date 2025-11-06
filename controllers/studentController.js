@@ -74,47 +74,5 @@ const getStudent=async(req,res)=>{
   }
 }
 
-const forgetPassword=async(req,res)=>{
-  try{
-  const {email}=req.body;
 
-  if(!email){
-    return res.status(400).json({message:"Please Provide Email"});
-  }
-  const checkStudent=await Student.findOne({email});
-
-  if(!checkStudent){
-    return res.status(400).json({message:"Student Not Found"});
-  }
-  const token=jwt.sign({email},process.env.WhatIsYourName,{
-    expiresIn:"1h",
-  });
-
-  const transporter=nodemailer.createTransport({
-    service:"gmail",
-    secure:true,
-    auth:{
-      user:process.env.EMAIL_USER,
-      pass:process.env.EMAIL_PASS,
-
-    }
-  });
-
-  const recevier={
-    from:"sgmcollege@gmail.com",
-    to:email,
-    subject:"Password Reset Request",
-    text:`Click on this link to Generate your New Password ${process.env.FRONTEND_URL}/reset-password/${token}`,
-  }
-  await transporter.sendMail(recevier);
-
-  return res.status(200).send({message:"Password reset link send Sucessfully on your Gamil Account"});
-
-  }
-  catch(err){
-return res.status(500).send({message:"Something Went Wrong"});
-
-  }
-}
-
-module.exports={studentRegister,studentLogin,getStudent,forgetPassword};
+module.exports={studentRegister,studentLogin,getStudent};
