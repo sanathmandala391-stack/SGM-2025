@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const resend = require("../mailer"); // Resend setup
+const transporter = require("../mailer"); // Zoho SMTP transporter
 const Admin = require("../models/Admin");
 const Faculty = require("../models/Faculty");
 const Student = require("../models/Student");
@@ -14,7 +14,6 @@ const getModelByRole = (role) => {
   return null;
 };
 
-// Forgot Password
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email, role } = req.body;
@@ -26,14 +25,13 @@ router.post("/forgot-password", async (req, res) => {
 
     const token = crypto.randomBytes(32).toString("hex");
     user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 mins
+    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000;
     await user.save();
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
 
-    // Send email via Resend
-    const response = await resend.emails.send({
-      from: "sanathmandala391@gmail.com", // your Gmail
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
       to: email,
       subject: `${role.toUpperCase()} Password Reset`,
       html: `
@@ -44,12 +42,7 @@ router.post("/forgot-password", async (req, res) => {
       `,
     });
 
-    console.log("Resend response:", response);
-
-    res.json({
-      message: "Password reset email sent successfully",
-      resetToken: token,
-    });
+    res.json({ message: "Password reset email sent successfully" });
   } catch (error) {
     console.error("Forgot Password Error:", error);
     res.status(500).json({ message: "Error sending reset email", error });
