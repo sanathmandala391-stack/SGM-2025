@@ -2,6 +2,7 @@
  const jwt=require("jsonwebtoken");
  const bcrypt=require("bcryptjs");
  const dotEnv=require("dotenv");
+ const transporter = require("../mailer");
 
  dotEnv.config();
 
@@ -83,4 +84,62 @@
     }
  }
  
- module.exports={adminRegister,adminLogin,getAdmin};
+const adminForgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(404).json({ message: "No admin found with that email" });
+    }
+
+    const token = jwt.sign({ id: admin._id }, process.env.WhatIsYourName, {
+      expiresIn: "10m",
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/admin/${token}`;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Admin Password Reset",
+      html: `
+        <p>Hello ${admin.name},</p>
+        <p>Click below to reset your password:</p>
+        <a href="${resetLink}" target="_blank">${resetLink}</a>
+        <p>This link expires in 10 minutes.</p>
+      `,
+    });
+
+    res.status(200).json({ message: "Password reset link sent successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error sending reset link" });
+  }
+};
+
+const adminResetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const decoded = jwt.verify(token, process.env.WhatIsYourName);
+    const admin = await Admin.findById(decoded.id);
+
+    if (!admin) {
+      return res.status(400).json({ message: "Invalid token or user not found" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    admin.password = hashed;
+    await admin.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Reset failed or token expired" });
+  }
+};
+
+
+ module.exports={adminRegister,adminLogin,getAdmin,adminForgotPassword,adminResetPassword};

@@ -2,7 +2,7 @@
 const jwt=require("jsonwebtoken");
 const bcrypt=require("bcryptjs");
 const dotEnv=require("dotenv");
-const nodemailer=require("nodemailer");
+const transporter = require("../mailer");
 
 dotEnv.config();
 const secretKey=process.env.WhatIsYourName;
@@ -74,5 +74,64 @@ const getStudent=async(req,res)=>{
   }
 }
 
+// ---------------- FORGOT PASSWORD ----------------
+const studentForgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const student = await Student.findOne({ email });
 
-module.exports={studentRegister,studentLogin,getStudent};
+    if (!student) {
+      return res.status(404).json({ message: "No student found with that email" });
+    }
+
+    const token = jwt.sign({ id: student._id }, process.env.WhatIsYourName, {
+      expiresIn: "10m",
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/student/${token}`;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Student Password Reset",
+      html: `
+        <p>Hello ${student.name},</p>
+        <p>Click below to reset your password:</p>
+        <a href="${resetLink}" target="_blank">${resetLink}</a>
+        <p>This link expires in 10 minutes.</p>
+      `,
+    });
+
+    res.status(200).json({ message: "Password reset link sent successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error sending reset link" });
+  }
+};
+
+// ---------------- RESET PASSWORD ----------------
+const studentResetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const decoded = jwt.verify(token, process.env.WhatIsYourName);
+    const student = await Student.findById(decoded.id);
+
+    if (!student) {
+      return res.status(400).json({ message: "Invalid token or user not found" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    student.password = hashed;
+    await student.save();
+
+    res.status(200).json({ message: "Password reset successful" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Reset failed or token expired" });
+  }
+};
+
+
+module.exports={studentRegister,studentLogin,getStudent,studentForgotPassword,studentResetPassword};

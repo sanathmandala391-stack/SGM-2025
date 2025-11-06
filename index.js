@@ -11,7 +11,6 @@ const complaintRoute = require("./routes/complaintRoute");
 const notesRoute = require("./routes/notesRoute");
 const noticeRoute = require("./routes/noticeRoute");
 const timetableRoute = require("./routes/timetableRoute");
-const emailRoute=require("./routes/emailRoute");
 
 dotenv.config();
 
@@ -46,7 +45,12 @@ app.use("/api", complaintRoute);
 app.use("/api", notesRoute);
 app.use("/api", noticeRoute);
 app.use("/api", timetableRoute);
-app.use("/api", emailRoute);
+ 
+app.use((req, res, next) => {
+  console.log("🔸 Unmatched Route:", req.method, req.url);
+  next();
+});
+
 
 
 app.get("/", (req, res) => {
