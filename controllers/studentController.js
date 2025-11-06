@@ -94,8 +94,8 @@ const forgetPassword=async(req,res)=>{
     service:"gmail",
     secure:true,
     auth:{
-      EMAIL_USER:process.env.EMAIL_USER,
-      EMAIL_PASS:process.env.EMAIL_PASS,
+      user:process.env.EMAIL_USER,
+      pass:process.env.EMAIL_PASS,
 
     }
   });
@@ -104,7 +104,7 @@ const forgetPassword=async(req,res)=>{
     from:"sgmcollege@gmail.com",
     to:email,
     subject:"Password Reset Request",
-    text:`Click on this link to Generate your New Password ${process.env.FRONTEND_URL}/reset-password${token}`,
+    text:`Click on this link to Generate your New Password ${process.env.FRONTEND_URL}/reset-password/${token}`,
   }
   await transporter.sendMail(recevier);
 
