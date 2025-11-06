@@ -1,8 +1,9 @@
+// forgotPasswordRoute.js
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const { sendEmail } = require("../mailer"); // <-- import the function
+const { sendEmail } = require("../mailer"); // <-- import function
 const Admin = require("../models/Admin");
 const Faculty = require("../models/Faculty");
 const Student = require("../models/Student");
@@ -30,7 +31,6 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
 
-    // ✅ Use the sendEmail function
     await sendEmail({
       to: email,
       subject: `${role.toUpperCase()} Password Reset`,
