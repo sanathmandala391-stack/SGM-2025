@@ -5,22 +5,27 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 module.exports = resend;*/
 
+// mailer.js
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.zoho.in",
   port: 465,
-  secure: true,
+  secure: true, // SSL
   auth: {
-    user: process.env.EMAIL_USER, // sgmcollege@zohomail.in
-    pass: process.env.EMAIL_PASS, // Zoho App Password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
-await transporter.sendMail({
-  from: process.env.EMAIL_USER,
-  to: "friend@example.com",
-  subject: "Password Reset Request",
-  html: `<p>Click <a href="${resetLink}">here</a> to reset your password</p>`,
-});
+// Wrap sending in an async function
+async function sendEmail({ to, subject, html }) {
+  return await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    html,
+  });
+}
 
+module.exports = { sendEmail };

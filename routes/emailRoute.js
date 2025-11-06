@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const transporter = require("../mailer"); // Zoho SMTP transporter
+const { sendEmail } = require("../mailer"); // <-- import the function
 const Admin = require("../models/Admin");
 const Faculty = require("../models/Faculty");
 const Student = require("../models/Student");
@@ -30,8 +30,8 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    // ✅ Use the sendEmail function
+    await sendEmail({
       to: email,
       subject: `${role.toUpperCase()} Password Reset`,
       html: `
