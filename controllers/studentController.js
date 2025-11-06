@@ -108,7 +108,7 @@ const forgetPassword=async(req,res)=>{
   }
   await transporter.sendMail(recevier);
 
-  return res.status(200).send({message:"Password reset link send Sucessfully on your Gamil Account",});
+  return res.status(200).send({message:"Password reset link send Sucessfully on your Gamil Account"});
 
   }
   catch(err){
