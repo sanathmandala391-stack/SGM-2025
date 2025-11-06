@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 const Admin = require("../models/Admin");
 const Student = require("../models/Student");
@@ -31,6 +31,7 @@ exports.forgotPassword = async (req, res) => {
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
+      secure:true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,

@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const { sendEmail } = require("../mailer"); // <-- use Resend
+const { sendEmail } = require("../mailer"); // <-- now Nodemailer
 const Admin = require("../models/Admin");
 const Faculty = require("../models/Faculty");
 const Student = require("../models/Student");
@@ -26,12 +26,12 @@ router.post("/forgot-password", async (req, res) => {
     // Generate reset token
     const token = crypto.randomBytes(32).toString("hex");
     user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000;
+    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes
     await user.save();
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
 
-    // Send email using Resend
+    // Send email using Nodemailer
     await sendEmail({
       to: email,
       subject: `${role.toUpperCase()} Password Reset`,
