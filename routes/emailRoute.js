@@ -1,9 +1,8 @@
-// forgotPasswordRoute.js
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const { sendEmail } = require("../mailer"); // <-- import function
+const { sendEmail } = require("../mailer"); // <-- use Resend
 const Admin = require("../models/Admin");
 const Faculty = require("../models/Faculty");
 const Student = require("../models/Student");
@@ -24,6 +23,7 @@ router.post("/forgot-password", async (req, res) => {
     const user = await Model.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    // Generate reset token
     const token = crypto.randomBytes(32).toString("hex");
     user.resetToken = token;
     user.resetTokenExpiry = Date.now() + 15 * 60 * 1000;
@@ -31,6 +31,7 @@ router.post("/forgot-password", async (req, res) => {
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${role}/${token}`;
 
+    // Send email using Resend
     await sendEmail({
       to: email,
       subject: `${role.toUpperCase()} Password Reset`,
