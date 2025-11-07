@@ -16,13 +16,13 @@
         type:String,
         required:true
     },
-  otp: {                 
-    type: String
-  },
-  otpExpiry: {          
-    type: Date
-  }
-
+     phone: {
+        type: String,
+        required: true, // <-- make sure it's required
+        unique: true,
+     },
+  otp: String,
+  otpExpire: Date,
  })
 
  const Admin=mongoose.model('Admin',AdminSchema);

@@ -15,12 +15,9 @@
     type:String,
     required:true,
    },
-     otp: {                 
-    type: String
-  },
-  otpExpiry: {          
-    type: Date
-  }
+  phone: { type: String, required: true, unique: true }, 
+  otp: String,
+  otpExpire: Date,
  })
 
  const Faculty=mongoose.model('Faculty',FacultySchema);

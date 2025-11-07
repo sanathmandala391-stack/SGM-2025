@@ -1,145 +1,131 @@
- const Admin=require("../models/Admin");
- const jwt=require("jsonwebtoken");
- const bcrypt=require("bcryptjs");
- const dotEnv=require("dotenv");
- const transporter = require("../mailer");
+const Admin = require("../models/Admin");
+const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
+const otpGenerator = require("otp-generator");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
- dotEnv.config();
+// Setup Nodemailer
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
- const secretKey=process.env.WhatIsYourName;
+// ---------------- ADMIN REGISTER ----------------
+const adminRegister = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
 
+    const existing = await Admin.findOne({ $or: [{ email }, { phone }] });
+    if (existing) return res.status(400).json({ message: "Email or phone already registered" });
 
- const adminRegister=async(req,res)=>{
-    try{
-  const count=await Admin.countDocuments();
-  if(count>=2){
-    return res.status(400).json({message:"Admin limits Reached"});
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const admin = new Admin({ name, email, phone, password: hashedPassword });
+    await admin.save();
+
+    res.status(201).json({ message: "Admin registered successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
-    }
-    catch(err){
-    console.log(err);
-    return res.status(500).json({error:"internal Server Error"});
-    }
+};
 
-    const {name,email,password}=req.body;
+// ---------------- ADMIN LOGIN ----------------
+const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-    try{
-        const adminEmail=await Admin.findOne({email});
-        if(adminEmail){
-            return res.status(400).json({error:"Admin Email Alredy Taken"});
-        }
-        const hashedPassword=await bcrypt.hash(password,10);
+    const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(400).json({ message: "Invalid email" });
 
-        const newAdmin=new Admin({
-            name,
-            email,
-            password:hashedPassword,
-        });
-        await newAdmin.save();
+    const valid = await bcrypt.compare(password, admin.password);
+    if (!valid) return res.status(400).json({ message: "Invalid password" });
 
-        const token=jwt.sign({adminId:newAdmin._id},secretKey,{expiresIn:"24h"});
-        res.status(201).json({
-            message:"Admin Registration Sucessfully",
-            token,
-            adminId:newAdmin._id,
-            name:newAdmin.name,
-            email:newAdmin.email,
-        })
-        console.log("Registred:",newAdmin.email)
-    }
-    catch(err){
- console.log(err);
- return res.status(500).json({error:"Internal Server Error"});
-    }
- };
+    // Generate JWT
+    const token = jwt.sign(
+      { adminId: admin._id, name: admin.name },
+      process.env.WhatIsYourName,
+      { expiresIn: "1h" }
+    );
 
+    res.json({ message: "Login successful", token, name: admin.name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
- const adminLogin=async(req,res)=>{
-    const{email,password}=req.body;
-
-    try{
-   const admin=await Admin.findOne({email});
-   if(!admin || !(await bcrypt.compare(password,admin.password))){
-    return res.status(400).json({error:"Invaild Email or Password"});
-   }
-   const token=jwt.sign({adminId:admin._id},secretKey,{expiresIn:"24h"});
-   res.status(200).json({sucess:"Login Sucessfull",token,adminId:admin._id,name:admin.name,email:admin.email,})
-    
-    console.log(`${email} logged in -token ${token}`);
-}
-    catch(err){
-   console.log(err);
-   return res.status(500).json({error:"Internal Server Error"});
-    }
- };
-
- const getAdmin=async(req,res)=>{
-    try{
-  const admins=await Admin.find();
-  res.status(200).json(admins);
-    }
-    catch(err){
-  console.log(err);
-  res.status(500).json({error:"Faild to fetch the admins"});
-    }
- }
- 
+// ---------------- ADMIN FORGOT PASSWORD ----------------
 const adminForgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(404).json({ message: "Email not registered" });
 
-    if (!admin) {
-      return res.status(404).json({ message: "No admin found with that email" });
-    }
-
-    const token = jwt.sign({ id: admin._id }, process.env.WhatIsYourName, {
-      expiresIn: "10m",
-    });
-
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password/admin/${token}`;
+    const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
+    admin.otp = otp;
+    admin.otpExpire = Date.now() + 5 * 60 * 1000;
+    await admin.save();
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Admin Password Reset",
-      html: `
-        <p>Hello ${admin.name},</p>
-        <p>Click below to reset your password:</p>
-        <a href="${resetLink}" target="_blank">${resetLink}</a>
-        <p>This link expires in 10 minutes.</p>
-      `,
+      to: admin.email,
+      subject: "Admin Password Reset OTP",
+      html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
     });
 
-    res.status(200).json({ message: "Password reset link sent successfully" });
+    res.json({ message: "OTP sent successfully to your registered email" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error sending reset link" });
+    res.status(500).json({ message: "Error sending OTP" });
   }
 };
 
-const adminResetPassword = async (req, res) => {
+// ---------------- VERIFY OTP ----------------
+const verifyAdminOtp = async (req, res) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
+    const { email, otp } = req.body;
+    const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    if (admin.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (Date.now() > admin.otpExpire) return res.status(400).json({ message: "OTP expired" });
 
-    const decoded = jwt.verify(token, process.env.WhatIsYourName);
-    const admin = await Admin.findById(decoded.id);
+    res.json({ message: "OTP verified successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error verifying OTP" });
+  }
+};
 
-    if (!admin) {
-      return res.status(400).json({ message: "Invalid token or user not found" });
-    }
+// ---------------- RESET PASSWORD ----------------
+const resetAdminPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const admin = await Admin.findOne({ email });
 
-    const hashed = await bcrypt.hash(password, 10);
-    admin.password = hashed;
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    if (admin.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (Date.now() > admin.otpExpire) return res.status(400).json({ message: "OTP expired" });
+
+    admin.password = await bcrypt.hash(newPassword, 10);
+    admin.otp = undefined;
+    admin.otpExpire = undefined;
     await admin.save();
 
-    res.status(200).json({ message: "Password reset successful" });
+    res.json({ message: "Password reset successful" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Reset failed or token expired" });
+    res.status(500).json({ message: "Error resetting password" });
   }
 };
 
-
- module.exports={adminRegister,adminLogin,getAdmin,adminForgotPassword,adminResetPassword};
+module.exports = {
+  adminRegister,
+  adminLogin,
+  adminForgotPassword,
+  verifyAdminOtp,
+  resetAdminPassword,
+};

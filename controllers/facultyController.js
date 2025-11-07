@@ -1,161 +1,248 @@
-const Faculty = require("../models/Faculty");
-const jwt = require("jsonwebtoken");
+/*const Faculty = require("../models/Faculty");
 const bcrypt = require("bcryptjs");
-const dotenv = require("dotenv");
-const transporter = require("../mailer");
-const express = require("express");
+const nodemailer = require("nodemailer");
+const otpGenerator = require("otp-generator");
+require("dotenv").config();
 
-dotenv.config();
-const secretKey = process.env.WhatIsYourName;
+// Setup Nodemailer
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// --------- REGISTER ---------
+const facultyRegister = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+    const existing = await Faculty.findOne({ $or: [{ email }, { phone }] });
+    if (existing) return res.status(400).json({ message: "Email or Phone already registered" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const faculty = new Faculty({ name, email, phone, password: hashedPassword });
+    await faculty.save();
+
+    res.status(201).json({ message: "Faculty registered successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// --------- LOGIN ---------
+const facultyLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const faculty = await Faculty.findOne({ email });
+    if (!faculty) return res.status(400).json({ message: "Invalid email" });
+
+    const valid = await bcrypt.compare(password, faculty.password);
+    if (!valid) return res.status(400).json({ message: "Invalid password" });
+
+    res.json({ message: "Login successful", facultyId: faculty._id, name: faculty.name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// --------- FORGOT PASSWORD (SEND OTP) ---------
+const facultyForgotPassword = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const faculty = await Faculty.findOne({ phone });
+    if (!faculty) return res.status(404).json({ message: "Phone not registered" });
+
+    const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
+    faculty.otp = otp;
+    faculty.otpExpire = Date.now() + 5 * 60 * 1000;
+    await faculty.save();
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: faculty.email,
+      subject: "Faculty Password Reset OTP",
+      html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
+    });
+
+    res.json({ message: "OTP sent successfully to your registered email" });
+  } catch (err) {
+    console.error("Error sending OTP:", err);
+    res.status(500).json({ message: "Error sending OTP" });
+  }
+};
+
+// --------- VERIFY OTP ---------
+const verifyFacultyOtp = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    const faculty = await Faculty.findOne({ phone });
+    if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+    if (faculty.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (Date.now() > faculty.otpExpire) return res.status(400).json({ message: "OTP expired" });
+
+    res.json({ message: "OTP verified successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error verifying OTP" });
+  }
+};
+
+// --------- RESET PASSWORD ---------
+const resetFacultyPassword = async (req, res) => {
+  try {
+    const { phone, otp, newPassword } = req.body;
+    const faculty = await Faculty.findOne({ phone });
+    if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+    if (faculty.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (Date.now() > faculty.otpExpire) return res.status(400).json({ message: "OTP expired" });
+
+    faculty.password = await bcrypt.hash(newPassword, 10);
+    faculty.otp = undefined;
+    faculty.otpExpire = undefined;
+    await faculty.save();
+
+    res.json({ message: "Password reset successful" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error resetting password" });
+  }
+};
+
+module.exports = { facultyRegister, facultyLogin, facultyForgotPassword, verifyFacultyOtp, resetFacultyPassword };*/
+const Faculty = require("../models/Faculty");
+const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
+const otpGenerator = require("otp-generator");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+
+// Setup Nodemailer
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 // ---------------- FACULTY REGISTER ----------------
 const facultyRegister = async (req, res) => {
-  const { name, email, password } = req.body;
-
   try {
-    const existingFaculty = await Faculty.findOne({ email });
-    if (existingFaculty) {
-      return res.status(400).json({ error: "Email already taken" });
-    }
+    const { name, email, password, phone } = req.body;
+
+    const existing = await Faculty.findOne({ $or: [{ email }, { phone }] });
+    if (existing) return res.status(400).json({ message: "Email or phone already registered" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const faculty = new Faculty({ name, email, phone, password: hashedPassword });
+    await faculty.save();
 
-    const newFaculty = new Faculty({
-      name,
-      email,
-      password: hashedPassword,
-    });
-    await newFaculty.save();
-
-    const token = jwt.sign({ facultyId: newFaculty._id }, secretKey, {
-      expiresIn: "24h",
-    });
-
-    res.status(201).json({
-      message: "Faculty registered successfully",
-      token,
-      facultyId: newFaculty._id,
-      name: newFaculty.name,
-      email: newFaculty.email,
-    });
-    console.log("Registered:", newFaculty.email);
+    res.status(201).json({ message: "Faculty registered successfully" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 // ---------------- FACULTY LOGIN ----------------
 const facultyLogin = async (req, res) => {
-  const { email, password } = req.body;
-
   try {
+    const { email, password } = req.body;
     const faculty = await Faculty.findOne({ email });
-    if (!faculty || !(await bcrypt.compare(password, faculty.password))) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
+    if (!faculty) return res.status(400).json({ message: "Invalid email" });
 
-    const token = jwt.sign({ facultyId: faculty._id }, secretKey, {
-      expiresIn: "24h",
-    });
+    const valid = await bcrypt.compare(password, faculty.password);
+    if (!valid) return res.status(400).json({ message: "Invalid password" });
 
-    res.status(200).json({
-      success: "Login successful",
+    const token = jwt.sign(
+      { facultyId: faculty._id, name: faculty.name },
+      process.env.WhatIsYourName,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      message: "Login successful",
       token,
       facultyId: faculty._id,
-      name: faculty.name,
-      email: faculty.email,
+      facultyname: faculty.name,
     });
-
-    console.log(`${email} logged in - token ${token}`);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// ---------------- GET ALL FACULTY ----------------
-const getFaculty = async (req, res) => {
-  try {
-    const faculty = await Faculty.find();
-    res.status(200).json(faculty);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch faculty" });
-  }
-};
-
-// ---------------- FORGOT PASSWORD ----------------
+// ---------------- FACULTY FORGOT PASSWORD ----------------
 const facultyForgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
-    const faculty = await Faculty.findOne({ email });
+    const { phone } = req.body;
+    const faculty = await Faculty.findOne({ phone });
+    if (!faculty) return res.status(404).json({ message: "Phone not registered" });
 
-    if (!faculty) {
-      return res.status(404).json({ message: "No faculty found with that email" });
-    }
-
-    const token = jwt.sign({ id: faculty._id }, process.env.WhatIsYourName, {
-      expiresIn: "10m",
-    });
-
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password/faculty/${token}`;
+    const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
+    faculty.otp = otp;
+    faculty.otpExpire = Date.now() + 5 * 60 * 1000;
+    await faculty.save();
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Faculty Password Reset",
-      html: `
-        <p>Hello ${faculty.name},</p>
-        <p>Click below to reset your password:</p>
-        <a href="${resetLink}" target="_blank">${resetLink}</a>
-        <p>This link expires in 10 minutes.</p>
-      `,
+      to: faculty.email,
+      subject: "Faculty Password Reset OTP",
+      html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
     });
 
-    res.status(200).json({ message: "Password reset link sent successfully" });
+    res.json({ message: "OTP sent successfully to your registered email" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error sending reset link" });
+    res.status(500).json({ message: "Error sending OTP" });
+  }
+};
+
+// ---------------- VERIFY OTP ----------------
+const verifyFacultyOtp = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    const faculty = await Faculty.findOne({ phone });
+    if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+    if (faculty.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (Date.now() > faculty.otpExpire) return res.status(400).json({ message: "OTP expired" });
+
+    res.json({ message: "OTP verified successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error verifying OTP" });
   }
 };
 
 // ---------------- RESET PASSWORD ----------------
-const facultyResetPassword = async (req, res) => {
+const resetFacultyPassword = async (req, res) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
- 
-        console.log("🔹 Received token:", token);
+    const { phone, otp, newPassword } = req.body;
+    const faculty = await Faculty.findOne({ phone });
 
-    if (!token || token === "undefined") {
-      return res.status(400).json({ message: "Invalid or missing token" });
-    }
+    if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+    if (faculty.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (Date.now() > faculty.otpExpire) return res.status(400).json({ message: "OTP expired" });
 
-
-    const decoded = jwt.verify(token, process.env.WhatIsYourName);
-    const faculty = await Faculty.findById(decoded.id);
-
-    if (!faculty) {
-      return res.status(400).json({ message: "Invalid token or user not found" });
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-    faculty.password = hashed;
+    faculty.password = await bcrypt.hash(newPassword, 10);
+    faculty.otp = undefined;
+    faculty.otpExpire = undefined;
     await faculty.save();
 
-    res.status(200).json({ message: "Password reset successful" });
+    res.json({ message: "Password reset successful" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Reset failed or token expired" });
+    res.status(500).json({ message: "Error resetting password" });
   }
 };
 
-// ---------------- EXPORTS ----------------
 module.exports = {
   facultyRegister,
   facultyLogin,
-  getFaculty,
   facultyForgotPassword,
-  facultyResetPassword,
+  verifyFacultyOtp,
+  resetFacultyPassword,
 };

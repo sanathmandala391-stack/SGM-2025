@@ -4,6 +4,14 @@ const path = require("path");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 
+// ✅ Load environment variables first
+dotenv.config();
+
+
+
+// ✅ Create Resend instance *after* dotenv.config()
+;
+
 const adminRoute = require("./routes/adminRoute");
 const facultyRoute = require("./routes/facultyRoute");
 const studentRoute = require("./routes/studentRoute");
@@ -12,18 +20,16 @@ const notesRoute = require("./routes/notesRoute");
 const noticeRoute = require("./routes/noticeRoute");
 const timetableRoute = require("./routes/timetableRoute");
 
-dotenv.config();
-
-
 const app = express();
 const PORT = process.env.PORT || 7000;
+
 
 app.use(
   cors({
     origin: [
       "https://sgm-theta.vercel.app",
       "https://sgmgpt.netlify.app",
-      "http://localhost:5173"
+      "http://localhost:5173",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -32,11 +38,10 @@ app.use(
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected successfully"))
-  .catch((err) => console.log("MongoDB connection failed:", err));
-
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected successfully"))
+  .catch((err) => console.log("❌ MongoDB connection failed:", err));
 
 app.use("/api", adminRoute);
 app.use("/api", facultyRoute);
@@ -45,19 +50,13 @@ app.use("/api", complaintRoute);
 app.use("/api", notesRoute);
 app.use("/api", noticeRoute);
 app.use("/api", timetableRoute);
- 
-app.use((req, res, next) => {
-  console.log("🔸 Unmatched Route:", req.method, req.url);
-  next();
-});
-
-
 
 app.get("/", (req, res) => {
-  res.send("Welcome to the SGM");
+  res.send("Welcome to SGM");
 });
 
+// --- 🧪 TEST EMAIL ROUTE ---
 
 app.listen(PORT, () => {
-  console.log(`Server started and running at port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
