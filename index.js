@@ -19,6 +19,9 @@ const complaintRoute = require("./routes/complaintRoute");
 const notesRoute = require("./routes/notesRoute");
 const noticeRoute = require("./routes/noticeRoute");
 const timetableRoute = require("./routes/timetableRoute");
+const visitorRoute = require("./routes/visitorRoute");
+
+
 
 const app = express();
 const PORT = process.env.PORT || 7000;
@@ -50,6 +53,7 @@ app.use("/api", complaintRoute);
 app.use("/api", notesRoute);
 app.use("/api", noticeRoute);
 app.use("/api", timetableRoute);
+app.use("/api", visitorRoute);
 
 app.get("/", (req, res) => {
   res.send("Welcome to SGM");

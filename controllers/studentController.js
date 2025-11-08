@@ -2,6 +2,8 @@ const Student = require("../models/Student");
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const otpGenerator = require("otp-generator");
+const jwt = require("jsonwebtoken");
+
 require("dotenv").config();
 
 // ✅ Setup Nodemailer (Requires EMAIL_USER and EMAIL_PASS in your .env file)
@@ -18,18 +20,29 @@ const studentRegister = async (req, res) => {
   try {
     const { name, email, pinNumber, password, phone } = req.body;
 
-    // Check if email or phone already exists
-    const existing = await Student.findOne({ $or: [{ email }, { phone }] });
-    if (existing) return res.status(400).json({ message: "Email or Phone already registered" });
+    if (!name || !email || !pinNumber || !password || !phone) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
-    // Hash the password
+    const existing = await Student.findOne({
+      $or: [{ email }, { phone }, { pinNumber }]
+    });
+    if (existing) return res.status(400).json({ message: "Email, Phone or PinNumber already registered" });
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const student = new Student({ name, email, pinNumber, phone, password: hashedPassword });
+    const student = new Student({ name, email, pinNumber, password: hashedPassword, phone });
     await student.save();
 
-    res.status(201).json({ message: "Student registered successfully" });
+    // Generate JWT
+    const token = jwt.sign(
+      { id: student._id, email: student.email },
+      process.env.WhatIsYourName,
+      { expiresIn: "1d" }
+    );
+
+    res.status(201).json({ message: "Student registered successfully", token, studentId: student._id, name: student.name });
   } catch (err) {
-    console.error(err);
+    console.error("Student registration error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -38,17 +51,20 @@ const studentRegister = async (req, res) => {
 const studentLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Find student by email
     const student = await Student.findOne({ email });
     if (!student) return res.status(400).json({ message: "Invalid email" });
 
-    // Compare provided password with hashed password
     const valid = await bcrypt.compare(password, student.password);
     if (!valid) return res.status(400).json({ message: "Invalid password" });
 
-    // Successful login (You would typically generate a JWT here)
-    res.json({ message: "Login successful", studentId: student._id });
+    // Generate JWT
+    const token = jwt.sign(
+      { id: student._id, email: student.email },
+      process.env.WhatIsYourName,
+      { expiresIn: "1d" }
+    );
+
+    res.json({ message: "Login successful", token, studentId: student._id, name: student.name });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
