@@ -3,14 +3,15 @@ const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const otpGenerator = require("otp-generator");
 const jwt = require("jsonwebtoken");
+
 require("dotenv").config();
 
-// ✅ Setup Nodemailer (Gmail + App Password)
+// ✅ Setup Nodemailer (Requires EMAIL_USER and EMAIL_PASS in your .env file)
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER, // your Gmail
-    pass: process.env.EMAIL_PASS, // App password
+    pass: process.env.EMAIL_PASS, // App password (not your real Gmail password)
   },
 });
 
@@ -32,6 +33,7 @@ const studentRegister = async (req, res) => {
     const student = new Student({ name, email, pinNumber, password: hashedPassword, phone });
     await student.save();
 
+    // Generate JWT
     const token = jwt.sign(
       { id: student._id, email: student.email },
       process.env.WhatIsYourName,
@@ -55,6 +57,7 @@ const studentLogin = async (req, res) => {
     const valid = await bcrypt.compare(password, student.password);
     if (!valid) return res.status(400).json({ message: "Invalid password" });
 
+    // Generate JWT
     const token = jwt.sign(
       { id: student._id, email: student.email },
       process.env.WhatIsYourName,
@@ -71,51 +74,46 @@ const studentLogin = async (req, res) => {
 // ---------------- 3. FORGOT PASSWORD (SEND OTP) ----------------
 const studentForgotPassword = async (req, res) => {
   try {
-    const { email } = req.body; // use email instead of phone
-    const student = await Student.findOne({ email });
-    if (!student) return res.status(404).json({ message: "Email not registered" });
+    const { phone } = req.body;
+    const student = await Student.findOne({ phone });
+    if (!student) return res.status(404).json({ message: "Phone not registered" });
 
-    // Generate OTP
+    // Generate and save OTP
     const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
     student.otp = otp;
-    student.otpExpire = Date.now() + 5 * 60 * 1000; // 5 min
+    student.otpExpire = Date.now() + 5 * 60 * 1000; // expires in 5 min
     await student.save();
 
-    console.log(`Generated OTP for ${student.email}: ${otp}`); // for testing
+    // Send OTP email (using Nodemailer)
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: student.email, // Sent to the registered email
+      subject: "Password Reset OTP",
+      html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
+    });
 
-    // Send OTP email safely
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: student.email,
-        subject: "Password Reset OTP",
-        html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
-      });
-      console.log("OTP sent successfully");
-      res.json({ message: "OTP sent successfully to your registered email" });
-    } catch (emailError) {
-      console.error("Failed to send OTP email:", emailError.message);
-      res.status(500).json({ message: "Failed to send OTP email", error: emailError.message });
-    }
+    res.json({ message: "OTP sent successfully to your registered email" });
   } catch (err) {
-    console.error("Error in forgot-password:", err);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error sending OTP:", err);
+    res.status(500).json({ message: "Error sending OTP" });
   }
 };
 
 // ---------------- 4. VERIFY OTP ----------------
 const verifyOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
-    const student = await Student.findOne({ email });
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    const { phone, otp } = req.body;
 
+    const student = await Student.findOne({ phone });
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    
+    // Check OTP match and expiration
     if (student.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
     if (Date.now() > student.otpExpire) return res.status(400).json({ message: "OTP expired" });
 
     res.json({ message: "OTP verified successfully" });
   } catch (err) {
-    console.error("Error verifying OTP:", err);
+    console.error(err);
     res.status(500).json({ message: "Error verifying OTP" });
   }
 };
@@ -123,13 +121,16 @@ const verifyOtp = async (req, res) => {
 // ---------------- 5. RESET PASSWORD ----------------
 const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
-    const student = await Student.findOne({ email });
+    const { phone, otp, newPassword } = req.body;
+    const student = await Student.findOne({ phone });
+
     if (!student) return res.status(404).json({ message: "Student not found" });
 
+    // Check OTP match and expiration
     if (student.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
     if (Date.now() > student.otpExpire) return res.status(400).json({ message: "OTP expired" });
 
+    // Hash the new password and clear OTP fields
     student.password = await bcrypt.hash(newPassword, 10);
     student.otp = undefined;
     student.otpExpire = undefined;
@@ -137,15 +138,10 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: "Password reset successful" });
   } catch (err) {
-    console.error("Error resetting password:", err);
+    console.error(err);
     res.status(500).json({ message: "Error resetting password" });
   }
 };
 
-module.exports = {
-  studentRegister,
-  studentLogin,
-  studentForgotPassword,
-  verifyOtp,
-  resetPassword
-};
+// Export all controller functions
+module.exports={studentRegister,studentLogin,studentForgotPassword,verifyOtp,resetPassword}
