@@ -6,12 +6,14 @@ const jwt = require("jsonwebtoken");
 
 require("dotenv").config();
 
-// ✅ Setup Nodemailer (Requires EMAIL_USER and EMAIL_PASS in your .env file)
+// ✅ Setup Nodemailer with Sendinblue SMTP
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER, // your Gmail
-    pass: process.env.EMAIL_PASS, // App password (not your real Gmail password)
+    user: process.env.SMTP_USER, // Sendinblue SMTP user
+    pass: process.env.SMTP_PASS, // Sendinblue SMTP password
   },
 });
 
@@ -33,7 +35,6 @@ const studentRegister = async (req, res) => {
     const student = new Student({ name, email, pinNumber, password: hashedPassword, phone });
     await student.save();
 
-    // Generate JWT
     const token = jwt.sign(
       { id: student._id, email: student.email },
       process.env.WhatIsYourName,
@@ -57,7 +58,6 @@ const studentLogin = async (req, res) => {
     const valid = await bcrypt.compare(password, student.password);
     if (!valid) return res.status(400).json({ message: "Invalid password" });
 
-    // Generate JWT
     const token = jwt.sign(
       { id: student._id, email: student.email },
       process.env.WhatIsYourName,
@@ -74,20 +74,20 @@ const studentLogin = async (req, res) => {
 // ---------------- 3. FORGOT PASSWORD (SEND OTP) ----------------
 const studentForgotPassword = async (req, res) => {
   try {
-    const { phone } = req.body;
-    const student = await Student.findOne({ phone });
-    if (!student) return res.status(404).json({ message: "Phone not registered" });
+    const { email } = req.body;
+    const student = await Student.findOne({ email });
+    if (!student) return res.status(404).json({ message: "Email not registered" });
 
-    // Generate and save OTP
+    // Generate OTP
     const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
     student.otp = otp;
-    student.otpExpire = Date.now() + 5 * 60 * 1000; // expires in 5 min
+    student.otpExpire = Date.now() + 5 * 60 * 1000; // 5 minutes
     await student.save();
 
-    // Send OTP email (using Nodemailer)
+    // Send OTP email
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: student.email, // Sent to the registered email
+      from: process.env.SMTP_USER,
+      to: student.email,
       subject: "Password Reset OTP",
       html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
     });
@@ -95,19 +95,17 @@ const studentForgotPassword = async (req, res) => {
     res.json({ message: "OTP sent successfully to your registered email" });
   } catch (err) {
     console.error("Error sending OTP:", err);
-    res.status(500).json({ message: "Error sending OTP" });
+    res.status(500).json({ message: "Failed to send OTP", error: err.message });
   }
 };
 
 // ---------------- 4. VERIFY OTP ----------------
 const verifyOtp = async (req, res) => {
   try {
-    const { phone, otp } = req.body;
-
-    const student = await Student.findOne({ phone });
+    const { email, otp } = req.body;
+    const student = await Student.findOne({ email });
     if (!student) return res.status(404).json({ message: "Student not found" });
-    
-    // Check OTP match and expiration
+
     if (student.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
     if (Date.now() > student.otpExpire) return res.status(400).json({ message: "OTP expired" });
 
@@ -121,16 +119,13 @@ const verifyOtp = async (req, res) => {
 // ---------------- 5. RESET PASSWORD ----------------
 const resetPassword = async (req, res) => {
   try {
-    const { phone, otp, newPassword } = req.body;
-    const student = await Student.findOne({ phone });
-
+    const { email, otp, newPassword } = req.body;
+    const student = await Student.findOne({ email });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
-    // Check OTP match and expiration
     if (student.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
     if (Date.now() > student.otpExpire) return res.status(400).json({ message: "OTP expired" });
 
-    // Hash the new password and clear OTP fields
     student.password = await bcrypt.hash(newPassword, 10);
     student.otp = undefined;
     student.otpExpire = undefined;
@@ -143,5 +138,4 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Export all controller functions
-module.exports={studentRegister,studentLogin,studentForgotPassword,verifyOtp,resetPassword}
+module.exports = { studentRegister, studentLogin, studentForgotPassword, verifyOtp, resetPassword };
