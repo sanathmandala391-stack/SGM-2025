@@ -3,7 +3,6 @@ const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const otpGenerator = require("otp-generator");
 const jwt = require("jsonwebtoken");
-
 require("dotenv").config();
 
 // ✅ Setup Nodemailer with Sendinblue SMTP
@@ -12,8 +11,8 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: process.env.SMTP_USER, // Sendinblue SMTP user
-    pass: process.env.SMTP_PASS, // Sendinblue SMTP password
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
@@ -21,13 +20,17 @@ const transporter = nodemailer.createTransport({
 const studentRegister = async (req, res) => {
   try {
     const { name, email, pinNumber, password, phone } = req.body;
-
     if (!name || !email || !pinNumber || !password || !phone) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    // Check if email, phone, or pinNumber already exists
     const existing = await Student.findOne({
-      $or: [{ email }, { phone }, { pinNumber }]
+      $or: [
+        { email: { $regex: new RegExp(`^${email}$`, "i") } },
+        { phone },
+        { pinNumber }
+      ]
     });
     if (existing) return res.status(400).json({ message: "Email, Phone or PinNumber already registered" });
 
@@ -52,7 +55,7 @@ const studentRegister = async (req, res) => {
 const studentLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const student = await Student.findOne({ email });
+    const student = await Student.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } });
     if (!student) return res.status(400).json({ message: "Invalid email" });
 
     const valid = await bcrypt.compare(password, student.password);
@@ -66,7 +69,7 @@ const studentLogin = async (req, res) => {
 
     res.json({ message: "Login successful", token, studentId: student._id, name: student.name });
   } catch (err) {
-    console.error(err);
+    console.error("Login error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -75,16 +78,14 @@ const studentLogin = async (req, res) => {
 const studentForgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const student = await Student.findOne({ email });
+    const student = await Student.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } });
     if (!student) return res.status(404).json({ message: "Email not registered" });
 
-    // Generate OTP
     const otp = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
     student.otp = otp;
     student.otpExpire = Date.now() + 5 * 60 * 1000; // 5 minutes
     await student.save();
 
-    // Send OTP email
     await transporter.sendMail({
       from: process.env.SMTP_USER,
       to: student.email,
@@ -103,7 +104,7 @@ const studentForgotPassword = async (req, res) => {
 const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    const student = await Student.findOne({ email });
+    const student = await Student.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     if (student.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
@@ -111,7 +112,7 @@ const verifyOtp = async (req, res) => {
 
     res.json({ message: "OTP verified successfully" });
   } catch (err) {
-    console.error(err);
+    console.error("Error verifying OTP:", err);
     res.status(500).json({ message: "Error verifying OTP" });
   }
 };
@@ -120,7 +121,7 @@ const verifyOtp = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
-    const student = await Student.findOne({ email });
+    const student = await Student.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } });
     if (!student) return res.status(404).json({ message: "Student not found" });
 
     if (student.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
@@ -133,7 +134,7 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: "Password reset successful" });
   } catch (err) {
-    console.error(err);
+    console.error("Error resetting password:", err);
     res.status(500).json({ message: "Error resetting password" });
   }
 };
