@@ -5,7 +5,7 @@ const otpGenerator = require("otp-generator");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
-// ✅ Setup Nodemailer with Brevo SMTP (Corrected)
+// ✅ Setup Nodemailer with Brevo SMTP
 const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
   port: 587,
@@ -82,7 +82,7 @@ const adminForgotPassword = async (req, res) => {
     await admin.save();
 
 const info = await transporter.sendMail({
-        from: "SGM@sgm47.work.gd", // 👈 Verified Sender Email
+        from: "SGM@sgm47.work.gd", 
         to: admin.email,
         subject: "Password Reset OTP",
         html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,

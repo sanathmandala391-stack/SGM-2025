@@ -5,7 +5,7 @@ const otpGenerator = require("otp-generator");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
-// ✅ Setup Nodemailer with Brevo SMTP (for your verified domain)
+// ✅ Setup Nodemailer with Brevo SMTP
 const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
   port: 587,
@@ -100,15 +100,14 @@ const studentForgotPassword = async (req, res) => {
     student.otpExpire = Date.now() + 5 * 60 * 1000; // 5 minutes
     await student.save();
 
-    // ⚠️ CRITICAL: Use your VERIFIED SENDER EMAIL here (e.g., SGM@sgm47.work.gd)
-const info = await transporter.sendMail({
-        from: "SGM@sgm47.work.gd", 
-        to: student.email,
-        subject: "Password Reset OTP",
-        html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
-    });
+    const info = await transporter.sendMail({
+      from: "SGM@sgm47.work.gd", // Verified Brevo Sender
+      to: student.email,
+      subject: "Password Reset OTP",
+      html: `<p>Your OTP is <b>${otp}</b>. It will expire in 5 minutes.</p>`,
+    });
 
-    // 👇 DEBUGGING: Check your console for this output!
+    // 👇 DEBUGGING OUTPUT
     console.log("--- EMAIL DELIVERY STATUS ---");
     console.log(`Recipient Email (from DB): ${student.email}`);
     console.log(`Brevo Response Code: ${info.responseCode}`);
@@ -117,7 +116,6 @@ const info = await transporter.sendMail({
     console.log("-----------------------------");
     
     if (info.rejected.length > 0) {
-      // If the email was immediately rejected by the SMTP server
       return res.status(500).json({ message: "Email rejected by Brevo. Check recipient address and Brevo logs." });
     }
 
