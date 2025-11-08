@@ -35,7 +35,7 @@ const addComplaint = async (req, res) => {
     // Send email
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: process.env.SMTP_USER,
         to: "sanathmandala391@gmail.com", // admin email
         subject: "🧾 New Complaint Submitted",
         text: `A new complaint has been submitted:
