@@ -2,7 +2,26 @@ const Complaint = require("../models/Complaint");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-// ---------------- NODEMAILER SETUP ----------------
+// 1. Setup Transporter with POOLING 
+// This is the most robust way to handle SMTP on cloud providers
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // SSL
+  pool: true,   // Use a pool of connections instead of creating new ones
+  maxConnections: 3,
+  maxMessages: 100,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  // Increase timeouts significantly for cloud network latency
+  connectionTimeout: 20000, 
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
+});
+
+// ---------------- ADD COMPLAINT ----------------
 const addComplaint = async (req, res) => {
   try {
     const { name, branch, pinNumber, message, email } = req.body;
@@ -11,53 +30,50 @@ const addComplaint = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 1. Save to Database
+    // 2. Save to Database first
     const newComplaint = new Complaint({ name, branch, pinNumber, message, email });
     await newComplaint.save();
 
-    // 2. Transporter using your .env names
-// 2. Transporter using Explicit Host and Port
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465, // Using 465 for SSL (More stable on cloud hosts)
-      secure: true, // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      // Optional: Add a timeout limit to prevent long hangs
-      connectionTimeout: 10000, // 10 seconds
-    });
+    // 3. Send Email (using await to catch timeouts)
+    try {
+      await transporter.sendMail({
+        from: `"${name}" <${process.env.SMTP_USER}>`, // Proper sender format
+        to: "sanathmandala391@gmail.com",
+        subject: "🧾 New Complaint Submitted",
+        text: `
+          New complaint received:
+          
+          Name: ${name}
+          PIN: ${pinNumber}
+          Email: ${email}
+          
+          Message:
+          ${message}
+        `,
+      });
+      console.log("✅ Email sent successfully");
+    } catch (emailError) {
+      // Log the specific error for Render logs
+      console.error("❌ SMTP Error:", emailError.code, emailError.message);
+    }
 
-    // 3. Send Email (Non-blocking)
-    transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to: "sanathmandala391@gmail.com",
-      subject: "🧾 New Complaint Submitted",
-      text: `New complaint from ${name}\nPIN: ${pinNumber}\nMessage: ${message}`,
-    }).catch(err => console.error("Email failed:", err));
-
+    // We return 201 because the database save was successful
     res.status(201).json({ message: "Complaint submitted successfully" });
 
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("❌ Controller Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
-// ---------------- GET ALL COMPLAINTS ----------------
+
+// ---------------- GET COMPLAINTS ----------------
 const getcomplaint = async (req, res) => {
   try {
     const complaints = await Complaint.find().sort({ createdAt: -1 });
     res.status(200).json(complaints);
   } catch (error) {
-    console.error("Error fetching complaints:", error);
-    res.status(500).json({
-      error: "Failed to fetch complaints",
-    });
+    res.status(500).json({ error: "Failed to fetch complaints" });
   }
 };
 
-module.exports = {
-  addComplaint,getcomplaint
-};
-
+module.exports = { addComplaint, getcomplaint };
