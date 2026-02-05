@@ -7,4 +7,3 @@ router.get("/getcomplaint",complaintController.getcomplaint);
 
 module.exports=router;
 
-//Complaint Route//
