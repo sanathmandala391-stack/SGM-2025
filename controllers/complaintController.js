@@ -16,12 +16,17 @@ const addComplaint = async (req, res) => {
     await newComplaint.save();
 
     // 2. Transporter using your .env names
+// 2. Transporter using Explicit Host and Port
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465, // Using 465 for SSL (More stable on cloud hosts)
+      secure: true, // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER, // Changed from EMAIL_USER
-        pass: process.env.SMTP_PASS, // Changed from EMAIL_PASS
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
       },
+      // Optional: Add a timeout limit to prevent long hangs
+      connectionTimeout: 10000, // 10 seconds
     });
 
     // 3. Send Email (Non-blocking)
