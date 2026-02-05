@@ -83,7 +83,6 @@ const getcomplaint = async (req, res) => {
 };
 
 module.exports = {
-  addComplaint,
-  getcomplaint,
+  addComplaint,getcomplaint
 };
-//Added//
+

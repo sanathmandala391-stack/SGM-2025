@@ -174,7 +174,7 @@ module.exports = { studentRegister, studentLogin, studentForgotPassword, verifyO
 const Student = require("../models/Student");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const admin = require("../config/firebase"); // ✅ Firebase Admin SDK
+//const admin = require("../config/firebase"); // ✅ Firebase Admin SDK
 require("dotenv").config();
 
 // --- 1️⃣ STUDENT REGISTER (manual registration, optional) ---
