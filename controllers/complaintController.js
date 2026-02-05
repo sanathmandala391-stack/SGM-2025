@@ -70,7 +70,7 @@ Please review it.
 };
 
 // ---------------- GET ALL COMPLAINTS ----------------
-const getComplaint = async (req, res) => {
+const getcomplaint = async (req, res) => {
   try {
     const complaints = await Complaint.find().sort({ createdAt: -1 });
     res.status(200).json(complaints);
@@ -84,5 +84,5 @@ const getComplaint = async (req, res) => {
 
 module.exports = {
   addComplaint,
-  getComplaint,
+  getcomplaint,
 };
