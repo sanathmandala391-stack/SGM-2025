@@ -2,20 +2,14 @@ const express = require("express");
 const router = express.Router();
 const studentController = require("../controllers/studentController");
 
-// ✅ Student Registration & Login
+// ✅ Manual Registration & Login (Email + Password)
 router.post("/studentRegister", studentController.studentRegister);
 router.post("/studentLogin", studentController.studentLogin);
 
-// ✅ Forgot Password (send OTP)
-router.post("/forgot-password/student", studentController.studentForgotPassword);
+// ✅ Firebase Phone OTP Login (no email needed)
+router.post("/verify-phone", studentController.verifyFirebaseLogin);
 
-// ✅ Verify OTP
-router.post("/verify-otp/student", studentController.verifyOtp);
-
-// ✅ Reset Password (after OTP verification)
-router.post("/reset-password/student",studentController.resetPassword);
-
-// ✅ Get All Students
-//router.get("/getstudents",studentController.);
+// ✅ Password Reset (optional for manual login users)
+router.post("/reset-password/student", studentController.resetPassword);
 
 module.exports = router;
