@@ -6,19 +6,12 @@ require("dotenv").config();
 // This is the most robust way to handle SMTP on cloud providers
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // SSL
-  pool: true,   // Use a pool of connections instead of creating new ones
-  maxConnections: 3,
-  maxMessages: 100,
+  port: 2525, // Try this "alternative" port
+  secure: false, 
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  // Increase timeouts significantly for cloud network latency
-  connectionTimeout: 20000, 
-  greetingTimeout: 20000,
-  socketTimeout: 20000,
 });
 
 // ---------------- ADD COMPLAINT ----------------
