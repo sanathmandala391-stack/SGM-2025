@@ -6,3 +6,5 @@ router.post("/complaint",complaintController.addComplaint);
 router.get("/getcomplaint",complaintController.getcomplaint);
 
 module.exports=router;
+
+//Complaint Route//
