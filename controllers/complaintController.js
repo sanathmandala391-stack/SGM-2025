@@ -3,72 +3,42 @@ const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 // ---------------- NODEMAILER SETUP ----------------
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER, // Gmail
-    pass: process.env.EMAIL_PASS, // App Password
-  },
-});
-
-// ---------------- ADD COMPLAINT ----------------
 const addComplaint = async (req, res) => {
   try {
-    console.log("Request Body:", req.body); // 🔍 Debug
-
     const { name, branch, pinNumber, message, email } = req.body;
 
-    // Validate fields
     if (!name || !branch || !pinNumber || !message || !email) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Save complaint to MongoDB
-    const newComplaint = new Complaint({
-      name,
-      branch,
-      pinNumber,
-      message,
-      email,
-    });
-
+    // 1. Save to Database
+    const newComplaint = new Complaint({ name, branch, pinNumber, message, email });
     await newComplaint.save();
 
-    console.log("Complaint saved successfully");
+    // 2. Transporter using your .env names
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.SMTP_USER, // Changed from EMAIL_USER
+        pass: process.env.SMTP_PASS, // Changed from EMAIL_PASS
+      },
+    });
 
-    // Send email to admin
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER, // ✅ FIXED
+    // 3. Send Email (Non-blocking)
+    transporter.sendMail({
+      from: process.env.SMTP_USER,
       to: "sanathmandala391@gmail.com",
       subject: "🧾 New Complaint Submitted",
-      text: `
-A new complaint has been submitted:
+      text: `New complaint from ${name}\nPIN: ${pinNumber}\nMessage: ${message}`,
+    }).catch(err => console.error("Email failed:", err));
 
-Name: ${name}
-Branch: ${branch}
-Pin Number: ${pinNumber}
-Email: ${email}
+    res.status(201).json({ message: "Complaint submitted successfully" });
 
-Message:
-${message}
-
-Please review it.
-      `,
-    });
-
-    console.log("Email sent successfully");
-
-    res.status(201).json({
-      message: "Complaint submitted successfully",
-    });
   } catch (error) {
-    console.error("Error adding complaint:", error);
-    res.status(500).json({
-      error: "Failed to add complaint",
-    });
+    console.error("Error:", error);
+    res.status(500).json({ error: error.message });
   }
 };
-
 // ---------------- GET ALL COMPLAINTS ----------------
 const getcomplaint = async (req, res) => {
   try {
