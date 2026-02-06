@@ -2,15 +2,12 @@ const Complaint = require("../models/Complaint");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-// 1. Setup Transporter with POOLING 
-// This is the most robust way to handle SMTP on cloud providers
+// ✅ Use 'service: gmail' - it's the most reliable for Node 24/Nodemailer
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 2525, // Try this "alternative" port
-  secure: false, 
+  service: "gmail",
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    pass: process.env.SMTP_PASS, // Use 16-digit Google App Password
   },
 });
 
@@ -23,14 +20,14 @@ const addComplaint = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 2. Save to Database first
+    // 1. Save to MongoDB
     const newComplaint = new Complaint({ name, branch, pinNumber, message, email });
     await newComplaint.save();
 
-    // 3. Send Email (using await to catch timeouts)
+    // 2. Attempt to Send Email
     try {
       await transporter.sendMail({
-        from: `"${name}" <${process.env.SMTP_USER}>`, // Proper sender format
+        from: `"College Complaint System" <${process.env.SMTP_USER}>`,
         to: "sanathmandala391@gmail.com",
         subject: "🧾 New Complaint Submitted",
         text: `
@@ -38,28 +35,27 @@ const addComplaint = async (req, res) => {
           
           Name: ${name}
           PIN: ${pinNumber}
-          Email: ${email}
+          Student Email: ${email}
+          Branch: ${branch}
           
           Message:
           ${message}
         `,
       });
       console.log("✅ Email sent successfully");
+      return res.status(201).json({ success: true, message: "Complaint submitted and email sent!" });
     } catch (emailError) {
-      // Log the specific error for Render logs
-      console.error("❌ SMTP Error:", emailError.code, emailError.message);
+      console.error("❌ SMTP Error:", emailError.message);
+      // We return 201 because it's in the DB, but we tell the user there was a mail glitch
+      return res.status(201).json({ success: true, message: "Complaint saved, but email notification failed." });
     }
-
-    // We return 201 because the database save was successful
-    res.status(201).json({ message: "Complaint submitted successfully" });
 
   } catch (error) {
     console.error("❌ Controller Error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 };
 
-// ---------------- GET COMPLAINTS ----------------
 const getcomplaint = async (req, res) => {
   try {
     const complaints = await Complaint.find().sort({ createdAt: -1 });
