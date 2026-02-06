@@ -1,4 +1,4 @@
-/*const mongoose=require("mongoose");
+const mongoose=require("mongoose");
 
 const notesSchema=new mongoose.Schema({
     subject:{
@@ -19,7 +19,8 @@ const notesSchema=new mongoose.Schema({
 })
 
 const Notes=mongoose.model("Notes",notesSchema);
-module.exports=Notes;*/
+module.exports=Notes;
+/*
 
 const mongoose = require("mongoose");
 
@@ -31,4 +32,4 @@ const notesSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model("Notes", notesSchema);
+module.exports = mongoose.model("Notes", notesSchema);*/
