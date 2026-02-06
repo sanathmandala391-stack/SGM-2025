@@ -1,4 +1,4 @@
-const Admin = require("../models/Admin");
+const Faculty = require("../models/Faculty"); // Use Faculty, not Admin
 const jwt = require("jsonwebtoken");
 
 const verifyToken = async (req, res, next) => {
@@ -9,18 +9,21 @@ const verifyToken = async (req, res, next) => {
     }
 
     try {
+        // Use the secret key from your .env
         const decoded = jwt.verify(token, process.env.WhatIsYourName);
-        const admin = await Admin.findById(decoded.adminId);
+        
+        // Match the key from your Login Controller: 'facultyId'
+        const faculty = await Faculty.findById(decoded.facultyId); 
 
-        if (!admin) {
-            return res.status(404).json({ error: "Admin Not Found" });
+        if (!faculty) {
+            return res.status(404).json({ error: "Faculty not found" });
         }
 
-        req.adminId = admin._id;
+        // Attach the ID to the request so the controller can use it
+        req.adminId = faculty._id; 
         next();
     } catch (err) {
-        console.error("JWT Error:", err.message);
-        return res.status(401).json({ error: "Invalid or Expired Token" });
+        return res.status(401).json({ error: "Invalid Token" });
     }
 };
 
