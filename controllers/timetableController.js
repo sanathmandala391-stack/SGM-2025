@@ -47,46 +47,41 @@ const getTimetable=async(req,res)=>{
 module.exports={addTimetable:[upload.single("image"),addTimetable],getTimetable}.
 
 */
-
 const Timetable = require("../models/Timetable");
 const multer = require("multer");
-const path = require("path");
-const verifyToken = require("../middlewares/verifyToken"); // Path to your middleware file
+const verifyToken = require("../middlewares/verifyToken");
 
-// Configure Storage
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, "uploads/"); 
-    },
-    filename: function (req, file, cb) {
-        const uniquename = Date.now() + "-" + file.originalname;
-        cb(null, uniquename);
-    }
+// Vercel fix: Use memoryStorage instead of diskStorage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
-
-const upload = multer({ storage: storage });
 
 const addTimetable = async (req, res) => {
     try {
         const { semester } = req.body;
-        const image = req.file ? req.file.filename : undefined;
+        
+        // When using memoryStorage, the file is in req.file.buffer
+        // For now, we store the originalname or a placeholder string 
+        // because Vercel won't let you write to an /uploads folder.
+        const image = req.file ? req.file.originalname : undefined;
 
-        // Validation
         if (!semester || !image) {
             return res.status(400).json({ message: "Semester and Image are required" });
         }
 
         const newTimetable = new Timetable({
             semester,
-            image,
-            admin: req.adminId // Assigning the ID from verifyToken
+            image, 
+            admin: req.adminId 
         });
 
         await newTimetable.save();
         res.status(201).json({ message: "Timetable added successfully" });
     } catch (err) {
         console.error("Backend Error:", err);
-        res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ error: "Internal Server Error", details: err.message });
     }
 };
 
@@ -99,7 +94,6 @@ const getTimetable = async (req, res) => {
     }
 };
 
-// Exporting as an array of middleware
 module.exports = { 
     addTimetable: [verifyToken, upload.single("image"), addTimetable], 
     getTimetable 
