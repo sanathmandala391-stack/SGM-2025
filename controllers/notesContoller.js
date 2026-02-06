@@ -48,4 +48,9 @@ res.status(500).json({error:"Failed to fetch the Notes"});
     }
  }
 
- module.exports={addNotes:[upload.single("file"),addNotes],getNotes}
+ // At the bottom of notesController.js
+module.exports = {
+    addNotes, 
+    getNotes,
+    upload // Export the multer instance directly
+};
