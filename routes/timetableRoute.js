@@ -3,7 +3,7 @@ const express=require("express");
 
 const router=express.Router();
 
-router.post("/add-timetable",timetableController.addTimetable);
+router.post("/timetable/add-timetable",timetableController.addTimetable);
 router.get("/gettimetable",timetableController.getTimetable);
 
 module.exports=router;
