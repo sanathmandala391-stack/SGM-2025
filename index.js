@@ -125,6 +125,7 @@ app.use("/api", visitorRoute);
 app.get("/", (req, res) => {
   res.send("Welcome to SGM API - Running on Vercel");
 });
+//New one//
 
 // 6. EXPORT FOR VERCEL
 // This is what prevents the Build Exit Code 1
