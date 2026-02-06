@@ -51,7 +51,7 @@ module.exports={addTimetable:[upload.single("image"),addTimetable],getTimetable}
 const Timetable = require("../models/Timetable");
 const multer = require("multer");
 const path = require("path");
-const verifyToken = require("../middleware/verifyToken"); // Path to your middleware file
+const verifyToken = require("../middlewares/verifyToken"); // Path to your middleware file
 
 // Configure Storage
 const storage = multer.diskStorage({
